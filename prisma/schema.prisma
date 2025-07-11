@@ -1,0 +1,135 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int           @id @default(autoincrement())
+  email           String        @unique
+  name            String
+  password        String
+  role            Role          @default(CLIENTE)
+  active          Boolean       @default(true)
+  commissionRate  Float?        // Percentage for sales commission
+  salesTarget     Float?        // Monthly sales target if applicable
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  reservations    Reservation[] @relation("UserReservations")
+  createdTours    Tour[]        @relation("TourCreator")
+  expenses        Expense[]
+  commissions     Commission[]
+}
+
+model Tour {
+  id              Int           @id @default(autoincrement())
+  title           String
+  description     String
+  priceAdult      Float
+  priceChild      Float
+  minPrice        Float
+  directCost      Float
+  vehicleCost     Float?
+  duration        String        // e.g., "2 hours", "Full day"
+  maxCapacity     Int
+  createdById     Int
+  createdBy       User         @relation("TourCreator", fields: [createdById], references: [id])
+  active          Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  reservations    Reservation[]
+}
+
+model Reservation {
+  id              Int           @id @default(autoincrement())
+  reservationCode String        @unique
+  tourId          Int
+  tour            Tour          @relation(fields: [tourId], references: [id])
+  userId          Int
+  user            User          @relation("UserReservations", fields: [userId], references: [id])
+  status          ReservationStatus
+  adultCount      Int
+  childCount      Int
+  totalPrice      Float
+  passengerInfo   Json         // Array of passenger details
+  scheduledAt     DateTime
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  expenses        Expense[]
+  commission      Commission?
+}
+
+model Expense {
+  id              Int           @id @default(autoincrement())
+  userId          Int          // Guide or driver ID
+  user            User         @relation(fields: [userId], references: [id])
+  reservationId   Int
+  reservation     Reservation  @relation(fields: [reservationId], references: [id])
+  amount          Float
+  description     String
+  type            ExpenseType
+  status          ExpenseStatus @default(PENDING)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model Commission {
+  id              Int           @id @default(autoincrement())
+  userId          Int          // Vendor ID
+  user            User         @relation(fields: [userId], references: [id])
+  reservationId   Int          @unique
+  reservation     Reservation  @relation(fields: [reservationId], references: [id])
+  amount          Float
+  status          CommissionStatus @default(PENDING)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+enum Role {
+  ADMIN
+  SUPERVISOR
+  VENDEDOR
+  GUIA
+  TRANSPORTISTA
+  LOGISTICA
+  CLIENTE
+}
+
+enum ReservationStatus {
+  RESERVADO
+  CANCELADO
+  NO_SHOW
+  CONFIRMADO
+  REALIZADO
+  PAGADO
+  COMISION_PENDIENTE
+  COMISION_PAGADA
+}
+
+enum ExpenseType {
+  COMBUSTIBLE
+  COMIDA
+  HOSPEDAJE
+  MANTENIMIENTO
+  OTROS
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  PAID
+  REJECTED
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
